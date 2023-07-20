@@ -3,15 +3,11 @@ from fastapi.responses import Response
 from fastapi.exceptions import HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel
-from comments.youtube_comments import get_video_comments
+from youtube_comments import get_video_comments
 from mongodb_config import db
 import multiprocessing
 
 app = FastAPI()
-
-
-SM_PLATFORMS = {'youtube': get_video_comments,
-                'instagram': None}
 
 
 class Analysis(BaseModel):
@@ -28,11 +24,21 @@ def create(project: Analysis):
         raise HTTPException(detail=str(error), status_code=400)
 
 
-@app.post('/comments')
-def fetch_comments(platform: str, _id: str):
-    multiprocessing.freeze_support()
-    result_queue = multiprocessing.Queue()
-    process = multiprocessing.Process(target=SM_PLATFORMS[platform], args=(_id, result_queue))
-    process.start()
-    if result_queue.get():
-        return {"comments": result_queue.get()}
+@app.get('/comments')
+def fetch_comments(_id: str):
+    try:
+        comments = dict()
+        multiprocessing.freeze_support()
+        result_queue = multiprocessing.Queue()
+        process = multiprocessing.Process(target=get_video_comments, args=(_id, result_queue))
+        process.start()
+        if result_queue.get():
+            comments['comments'] = result_queue.get()
+            return comments
+    except Exception as error:
+        return Response({'error': str(error)})
+
+
+@app.post('/analyze')
+def analyze():
+    pass
