@@ -4,7 +4,8 @@ from fastapi.exceptions import HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel
 from youtube_comments import get_video_comments
-from mongodb_config import db
+from comments_text_cleaning import clean_comments_text
+from mongodb_config import db, collection
 import multiprocessing
 
 app = FastAPI()
@@ -27,18 +28,21 @@ def create(project: Analysis):
 @app.get('/comments')
 def fetch_comments(_id: str):
     try:
-        comments = dict()
         multiprocessing.freeze_support()
         result_queue = multiprocessing.Queue()
         process = multiprocessing.Process(target=get_video_comments, args=(_id, result_queue))
         process.start()
-        if result_queue.get():
-            comments['comments'] = result_queue.get()
-            return comments
+        comments = result_queue.get()
+        if comments:
+            collection.insert_one({'source_id': _id, 'comments': result_queue.get()})
+            return {'source_id': _id, 'comments': comments}
     except Exception as error:
-        return Response({'error': str(error)})
+        raise HTTPException(detail=str(error), status_code=500)
 
 
-@app.post('/analyze')
-def analyze():
-    pass
+@app.get('/analyze')
+def analyze(source_id: str):
+    raw_comments = collection.find_one({'source_id': source_id}).get('comments')
+    print(raw_comments)
+    cleaned_comments = clean_comments_text(raw_comments)
+    return {'cleaned_comments': cleaned_comments}
