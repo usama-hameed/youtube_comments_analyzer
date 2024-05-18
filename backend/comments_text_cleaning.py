@@ -5,6 +5,7 @@ nlp = spacy.load('en_core_web_sm')
 
 
 def remove_emoji(comment):
+
     emoji_pattern = re.compile("["
                                u"\U0001F600-\U0001F64F"  # emoticons
                                u"\U0001F300-\U0001F5FF"  # symbols & pictographs
@@ -18,7 +19,8 @@ def remove_emoji(comment):
                                u"\U00002702-\U000027B0"  # Dingbats
                                u"\U000024C2-\U0001F251" 
                                "]+", flags=re.UNICODE)
-    comment = emoji_pattern.sub(u'', comment)
+
+    comment = emoji_pattern.sub('', comment)
     return comment
 
 
@@ -27,10 +29,13 @@ def remove_stopwords(comment):
     return " ".join(token.text for token in comment if not token.is_stop)
 
 
-def clean_comments_text(raw_comments):
-    for index, raw_comment in enumerate(raw_comments):
-        comment = remove_emoji(raw_comment)
-        comment = remove_stopwords(comment)
-        raw_comments[index] = comment
-
-    return raw_comments
+def clean_comments_text(comments):
+    cleaned_comments = []
+    for items in comments:
+        _id = list(items.keys())[0]
+        comment = list(items.values())[0]
+        comment = remove_emoji(comment)
+        # comment = remove_stopwords(comment)
+        items[_id] = comment
+        cleaned_comments.append(items)
+    return cleaned_comments
